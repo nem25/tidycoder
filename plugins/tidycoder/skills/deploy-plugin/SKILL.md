@@ -1,7 +1,7 @@
 ---
 name: deploy-plugin
 description: Release a Claude Code plugin from this repository — check the README is current, bump the version in plugin.json, update CHANGELOG.md, validate the plugin and marketplace, then tag and push. Use when the user asks to release, ship, publish, or deploy a plugin.
-allowed-tools: Bash(git branch:*), Bash(git status:*), Bash(git fetch:*), Bash(git rev-list:*), Bash(git symbolic-ref:*), Bash(git remote get-url:*), Bash(git log:*), Bash(git describe:*), Bash(git tag:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(claude plugin validate:*), Bash(claude plugin tag:*), Read, Write, Edit, Glob
+allowed-tools: Bash(git branch:*), Bash(git status:*), Bash(git fetch:*), Bash(git rev-list:*), Bash(git symbolic-ref:*), Bash(git remote get-url:*), Bash(git log:*), Bash(git describe:*), Bash(git tag:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(claude plugin validate:*), Bash(claude plugin tag:*), Read, Write, Edit
 argument-hint: major|minor|patch [plugin-name]
 disable-model-invocation: true
 ---
@@ -86,7 +86,7 @@ If either reports errors, stop and show them. Nothing has been changed, so the u
 
 A published plugin's README is its only documentation, and it is public. Someone installing from GitHub reads it before anything else, and a README listing skills that no longer exist — or missing ones that do — is worse than no README. Do not release with a README that is out of date.
 
-**Gather what the plugin actually contains:**
+**Gather what the plugin actually contains.** List the files with whichever file-listing tool this session has (a file search tool, or `find` through Bash); don't depend on one in particular.
 
 - **Skills:** each `PLUGIN_DIR/skills/*/SKILL.md`. Read its `name`, its `description`, and whether it sets `disable-model-invocation: true`.
 - **Agents:** each `PLUGIN_DIR/agents/*.md`. Read its `name` and `description`.
