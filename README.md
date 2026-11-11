@@ -60,7 +60,9 @@ One row above the prompt, framed:
 - **Cost** of the session so far.
 - **5h and 7d**: your plan's rate-limit windows, with the time each one resets. These show on a Claude subscription only.
 
-Bars turn amber at 50% and red at 80%. On a narrow terminal the band wraps into two rows. Collapse it with `ctrl+x ctrl+a`, or by clicking `[-]`. It steps aside while Claude Code shows a survey in the same spot.
+Bars turn amber at 50% and red at 80%. On a narrow terminal the band wraps into two rows. It steps aside while Claude Code shows a survey in the same spot.
+
+To hide it for a moment, press `ctrl+x ctrl+a` or click `[-]`. To turn it off for good, set **Show status band** to off in `/config` (you're also asked when you install the plugin). When it's off the band takes no space at all, and the skills keep working.
 
 The band is a Claude Code mod built on function hooks, an early-access API, so a future Claude Code release may need an update to the plugin.
 

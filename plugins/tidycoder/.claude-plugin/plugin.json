@@ -5,5 +5,13 @@
   "version": "1.0.0",
   "author": { "name": "Neha" },
   "repository": "https://github.com/nem25/tidycoder",
-  "license": "MIT"
+  "license": "MIT",
+  "userConfig": {
+    "showStatusBand": {
+      "type": "boolean",
+      "title": "Show status band",
+      "description": "Show the band above the prompt with the model, context, cost and plan limits. Turn off to hide it completely; the skills keep working.",
+      "default": true
+    }
+  }
 }

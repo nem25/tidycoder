@@ -172,7 +172,12 @@ function render(Box, Text, rows) {
 }
 
 // ---------- hooks ----------
-export function register(on) {
+export function register(on, options) {
+  // The "Show status band" option (plugin.json userConfig). When it's off,
+  // register no hooks at all: the mod is inert and the band takes no space.
+  // Changing the option reloads the module, so this runs again.
+  if (options && options.showStatusBand === false) return
+
   // Pick up the current model and effort when the mod loads
   on('session.start', async ($, e, next) => {
     try {
