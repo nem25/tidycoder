@@ -1,6 +1,6 @@
 # TidyCoder
 
-A Claude Code plugin for tidy, structured coding workflows. It adds two skills, one for writing commits and one for cutting Vercel releases, and a status band above the prompt that shows the model, context use, session cost and plan limits at a glance.
+A Claude Code plugin for tidy, structured coding workflows. It adds skills for writing commits, cutting Vercel releases and releasing Claude Code plugins, and a status band above the prompt that shows the model, context use, session cost and plan limits at a glance.
 
 ## Install
 
@@ -47,6 +47,20 @@ Cuts a production release for a project that Vercel deploys from Git:
 
 It only runs when you type the command; Claude won't start it on its own. It assumes `dev` is your integration branch (Vercel preview) and `main` is production, and that `package.json` at the repository root has a `version` field. If anything fails, it stops before pushing, never resolves conflicts or resets branches itself, and tells you how to recover.
 
+### `/tidycoder:deploy-plugin <major|minor|patch> [plugin-name]`
+
+Releases a Claude Code plugin from a marketplace repository like this one:
+
+1. Checks you're on the default branch, the working tree is clean and, after a fetch, that the branch is up to date.
+2. Validates the plugin and the marketplace.
+3. Checks the README covers every skill, agent, mod and option in the plugin, and the install lines. If it's out of date, it drafts the changes and won't release without them.
+4. Works out the new version and drafts a `CHANGELOG.md` entry from the commits since the plugin's last release tag.
+5. Asks you to confirm. Nothing is written before you say yes.
+6. Writes the changes, validates again, commits, and tags `<plugin>--vX.Y.Z` with `claude plugin tag`.
+7. Pushes the branch and the tag in one atomic push.
+
+It only runs when you type the command. Give the plugin name when the marketplace lists more than one plugin. If anything fails, it stops before pushing and tells you how to recover.
+
 ### Status band
 
 One row above the prompt, framed:
@@ -80,6 +94,7 @@ tidycoder/
         │   ├── hooks.json      names the mod's module
         │   └── register.js     the status band
         └── skills/
+            ├── deploy-plugin/SKILL.md
             ├── deploy-vercel/SKILL.md
             └── git-commit/SKILL.md
 ```
