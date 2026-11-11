@@ -1,0 +1,27 @@
+# OS and editor clutter
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Logs
+*.log
+
+# Environment files and secrets
+.env
+.env.*
+
+# Dependencies, if a script or test ever adds them
+node_modules/
+
+# Written by Claude Code when it loads the mod (API types for the editor);
+# regenerated on every load, so they don't belong in the repo
+plugins/*/.claude-plugin/types/
+plugins/*/tsconfig.json
+.mcpb-cache/
+
+# Claude Code's per-user local settings
+.claude/settings.local.json
+
+_internal-notes
+.devcontainer

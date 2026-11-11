@@ -1,0 +1,99 @@
+# TidyCoder
+
+A Claude Code plugin for tidy, structured coding workflows. It adds two skills, one for writing commits and one for cutting Vercel releases, and a status band above the prompt that shows the model, context use, session cost and plan limits at a glance.
+
+## Install
+
+At the prompt of a Claude Code session (version 2.1.275 or later):
+
+```
+/plugin install tidycoder --marketplace nem25/tidycoder
+```
+
+Answer `y` to add the marketplace, then pick a scope. From a shell instead:
+
+```
+claude plugin install tidycoder --marketplace nem25/tidycoder
+```
+
+On older versions, add the marketplace first:
+
+```
+/plugin marketplace add nem25/tidycoder
+/plugin install tidycoder@tidycoder
+```
+
+## What's included
+
+### `/tidycoder:git-commit`
+
+Reads your changes and writes a commit message in the imperative mood that explains why the change was made, with an emoji type prefix (`✨ feat:`, `🐞 fix:`, `🔨 refactor:` and so on).
+
+- If anything is staged, it commits only that.
+- If nothing is staged, it groups unrelated changes into separate commits and stages each group by path.
+- It shows you the proposed commits and waits for your yes before staging or committing anything.
+- It never amends, pushes or creates branches.
+
+### `/tidycoder:deploy-vercel <major|minor|patch>`
+
+Cuts a production release for a project that Vercel deploys from Git:
+
+1. Checks you're on `dev`, the working tree is clean and `dev` is in sync with the remote.
+2. Bumps the version in `package.json` and writes a `CHANGELOG.md` entry summarising the commits since the last tag.
+3. Asks you to confirm.
+4. Commits the bump on `dev`, merges `dev` into `main` with `--no-ff`, tags `vX.Y.Z` and pushes both.
+
+It assumes `dev` is your integration branch (Vercel preview) and `main` is production, and that `package.json` at the repository root has a `version` field. On a merge conflict it stops and leaves the resolution to you.
+
+### Status band
+
+One row above the prompt, framed:
+
+```
+◆ Opus 5.5 · high │ ctx ███░░░░░ 90k/1M │ $1.24 │ 5h ████▋░░░ 58% ↻4:40pm │ 7d ███▎░░░░ 41% ↻Sat
+```
+
+- **Model and effort** of the main conversation. Subagents running on other models don't change it.
+- **Context**: how full the context window is, in tokens.
+- **Cost** of the session so far.
+- **5h and 7d**: your plan's rate-limit windows, with the time each one resets. These show on a Claude subscription only.
+
+Bars turn amber at 50% and red at 80%. On a narrow terminal the band wraps into two rows. Collapse it with `ctrl+x ctrl+a`, or by clicking `[-]`. It steps aside while Claude Code shows a survey in the same spot.
+
+The band is a Claude Code mod built on function hooks, an early-access API, so a future Claude Code release may need an update to the plugin.
+
+## Repository layout
+
+```
+tidycoder/
+├── .claude-plugin/
+│   └── marketplace.json        the marketplace: lists the plugin
+└── plugins/
+    └── tidycoder/
+        ├── .claude-plugin/
+        │   └── plugin.json     the plugin's manifest
+        ├── hooks/
+        │   ├── hooks.json      names the mod's module
+        │   └── register.js     the status band
+        └── skills/
+            ├── deploy-vercel/SKILL.md
+            └── git-commit/SKILL.md
+```
+
+## Developing
+
+Run Claude Code with the plugin loaded straight from this folder:
+
+```
+claude --plugin-dir plugins/tidycoder
+```
+
+Edits to `register.js` reload the band on save. Check the plugin with:
+
+```
+claude plugin validate plugins/tidycoder
+```
+
+## License
+
+[MIT](LICENSE)

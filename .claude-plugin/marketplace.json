@@ -1,0 +1,12 @@
+{
+  "name": "tidycoder",
+  "description": "TidyCoder: skills and tools for structured, 0-1 product coding workflows in Claude Code.",
+  "owner": { "name": "Neha" },
+  "plugins": [
+    {
+      "name": "tidycoder",
+      "source": "./plugins/tidycoder",
+      "description": "Skills and tools for structured, 0-1 product coding workflows"
+    }
+  ]
+}
