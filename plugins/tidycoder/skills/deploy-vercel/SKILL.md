@@ -1,7 +1,8 @@
 ---
 name: deploy-vercel
 description: Release the current project to production on Vercel — bump the version in package.json, write a CHANGELOG entry, merge dev into main, and tag the release. Use when the user asks to deploy, ship, cut a release, or push to production.
-allowed-tools: Bash(git branch:*), Bash(git status:*), Bash(git log:*), Bash(git describe:*), Bash(git tag:*), Bash(git add:*), Bash(git commit:*), Bash(git checkout:*), Bash(git merge:*), Bash(git pull:*), Bash(git push:*), Read, Write
+disable-model-invocation: true
+allowed-tools: Bash(git branch:*), Bash(git status:*), Bash(git fetch:*), Bash(git rev-list:*), Bash(git log:*), Bash(git describe:*), Bash(git tag:*), Bash(git add:*), Bash(git commit:*), Bash(git checkout:*), Bash(git merge:*), Bash(git push:*), Bash(npm run:*), Bash(pnpm run:*), Bash(yarn run:*), Bash(bun run:*), Read, Write, Edit
 argument-hint: major|minor|patch
 ---
 
@@ -11,11 +12,27 @@ Release the project by bumping the version on `dev`, merging `dev` into `main`, 
 
 **Branch convention assumed:** `dev` is the integration branch (Vercel preview), `main` is production. Feature work happens on branches off `dev`.
 
-## Step 1 — Check the current branch
+**Safety rules for this whole skill:**
+
+- Write no file before the user confirms in Step 9.
+- Push nothing until every local step has succeeded. Step 14 pushes `dev`, `main` and the tag in one atomic push: either all three reach the remote, or none do.
+- Never resolve conflicts, reset branches or delete tags yourself. When a step fails, stop, say what state the repository is in, and give the user the commands to recover.
+
+## Step 1 — Check the bump type
+
+The user passed in: $ARGUMENTS
+
+$ARGUMENTS must be one of: `major`, `minor`, `patch`.
+
+If $ARGUMENTS is missing or not one of those three values, stop and tell the user:
+
+> ❌ Specify a bump type: `/tidycoder:deploy-vercel minor`
+
+## Step 2 — Check the current branch
 
 Run: `git branch --show-current`
 
-**If the output is `dev`,** continue to Step 2.
+**If the output is `dev`,** continue to Step 3.
 
 **If the output is `main`,** stop and tell the user:
 
@@ -38,7 +55,7 @@ Run: `git branch --show-current`
 
 Do not proceed with any further steps.
 
-## Step 2 — Verify the working tree is clean
+## Step 3 — Verify the working tree is clean
 
 Run: `git status --porcelain`
 
@@ -46,27 +63,34 @@ If there is any output, stop and tell the user:
 
 > ❌ You have uncommitted changes. Commit or stash them before deploying.
 
-Do not proceed with any further steps.
+## Step 4 — Fetch and verify the branches are in sync
 
-## Step 3 — Verify dev is in sync with the remote
+Run: `git fetch origin --tags`
 
-Run: `git status -sb`
+If it fails, stop and tell the user that `origin` could not be reached, with the error.
 
-If the branch is reported as behind or diverged from `origin/dev`, stop and tell the user to reconcile first:
+Then run: `git rev-list --left-right --count dev...origin/dev`
 
-> ❌ Your local `dev` is out of sync with `origin/dev`. Run `git pull origin dev` and resolve any conflicts before deploying.
+The output is two numbers: commits `dev` is ahead, then commits it is behind. If the second number is above 0, stop and tell the user:
 
-Being ahead of the remote is fine — Step 10 pushes.
+> ❌ Your local `dev` is behind `origin/dev`. Run `git pull origin dev` and resolve any conflicts before deploying.
 
-## Step 4 — Determine the version bump type
+Being ahead is fine: those commits are pushed with the release in Step 14.
 
-The user passed in: $ARGUMENTS
+Then run: `git rev-list --count dev..origin/main`
 
-$ARGUMENTS must be one of: `major`, `minor`, `patch`.
+If this fails because `origin/main` does not exist, stop and tell the user this skill expects a `main` branch on `origin` for Vercel to deploy from.
 
-If $ARGUMENTS is missing or not one of those three values, stop and tell the user:
+If the number is above 0, `main` has commits that `dev` does not (a hotfix, for example). Stop and tell the user:
 
-> ❌ Specify a bump type: `/deploy-vercel minor`
+> ❌ `main` has commits that aren't on `dev`. Bring them into `dev` first, so the release merge can't conflict:
+>
+> ```
+> git merge origin/main
+> git push origin dev
+> ```
+>
+> Then run this again.
 
 ## Step 5 — Read the current version
 
@@ -74,15 +98,40 @@ Read `package.json` and extract the `version` field. Call this CURRENT_VERSION.
 
 If `package.json` does not exist, or has no `version` field, stop and tell the user that this skill expects a versioned `package.json` at the repository root.
 
-## Step 6 — Collect commits since the last tag
+If CURRENT_VERSION is not plain `MAJOR.MINOR.PATCH` (for example it has a pre-release suffix such as `1.2.0-beta.1`), stop and ask the user what the new version should be.
 
-Run: `git log $(git describe --tags --abbrev=0 2>/dev/null)..HEAD --pretty=format:"%s" 2>/dev/null || git log --pretty=format:"%s"`
+## Step 6 — Run the project's checks
 
-This gives all commit messages since the last tag, or all commits if no tag exists yet. Call this COMMIT_LOG.
+Pick the package manager from the lockfile at the repository root: `pnpm-lock.yaml` → `pnpm`, `yarn.lock` → `yarn`, `bun.lock` or `bun.lockb` → `bun`, otherwise `npm`.
 
-## Step 7 — Calculate the new version
+Using the `scripts` in `package.json`:
 
-Apply the bump type from Step 4 to CURRENT_VERSION using semver rules:
+- If there is a `test` script and it is not npm's placeholder (`echo "Error: no test specified" && exit 1`), run `<package-manager> run test`.
+- If there is a `build` script, run `<package-manager> run build`.
+
+If either fails, stop. Show the user the end of the output and tell them:
+
+> ❌ `<package-manager> run <script>` failed. Fix it before releasing.
+
+If there is neither script, tell the user no test or build script was found, and continue.
+
+Then run `git status --porcelain` again. If there is any output, the checks changed files in the repository. Stop and tell the user which files, and that they should commit them or add them to `.gitignore` before releasing.
+
+## Step 7 — Collect commits since the last tag
+
+Run: `git describe --tags --abbrev=0`
+
+If it succeeds, its output is LAST_TAG. Run: `git log LAST_TAG..HEAD --pretty=format:"%s"`
+
+If it fails, there are no tags yet. Run: `git log --pretty=format:"%s"`
+
+Call the output COMMIT_LOG. If it is empty, stop and tell the user:
+
+> ❌ Nothing to release: there are no commits on `dev` since LAST_TAG.
+
+## Step 8 — Calculate the new version and draft the CHANGELOG entry
+
+Apply the bump type from Step 1 to CURRENT_VERSION using semver rules:
 
 - patch: increment the third number (1.2.3 → 1.2.4)
 - minor: increment the second number, reset the third to 0 (1.2.3 → 1.3.0)
@@ -90,64 +139,103 @@ Apply the bump type from Step 4 to CURRENT_VERSION using semver rules:
 
 Call this NEW_VERSION.
 
-## Step 8 — Update package.json
+Run: `git tag -l vNEW_VERSION`
 
-Update the `version` field in `package.json` to NEW_VERSION. Change nothing else in the file.
+If it prints anything, stop and tell the user that the tag `vNEW_VERSION` already exists, so this version has already been released.
 
-## Step 9 — Update CHANGELOG.md
+Draft the CHANGELOG entry, but do not write it yet. Using COMMIT_LOG as source material, write a natural language summary of what changed — do not copy commit messages verbatim. Skip noise such as earlier `chore: bump version` and `release:` commits and merge commits. The entry is the version and date on one line as `## vNEW_VERSION — YYYY-MM-DD`, followed by the summary as a bullet list.
 
-If `CHANGELOG.md` does not exist, create it with a standard header.
-
-Using COMMIT_LOG as source material, write a natural language summary of what changed — do not copy commit messages verbatim. Skip noise such as previous `chore: bump version` commits and merge commits.
-
-Prepend a new entry below the header and above any existing entries, in this format: the version and date on one line as `## vNEW_VERSION — YYYY-MM-DD`, followed by the summary of changes as a bullet list.
-
-## Step 10 — Confirm with the user
+## Step 9 — Confirm with the user
 
 Show the user:
 
 - CURRENT_VERSION → NEW_VERSION
+- Which checks ran in Step 6 and that they passed
 - The CHANGELOG entry about to be written
 - The branches that will be updated: `dev` and `main`
 - The tag that will be created: `vNEW_VERSION`
 
 Ask: "Proceed with deploy? (yes/no)"
 
-If the user says anything other than yes, stop and tell them: "Deploy cancelled. No changes have been committed."
+If the user says anything other than yes, stop and tell them: "Deploy cancelled. No files were changed."
 
-## Step 11 — Commit the version bump on dev
+## Step 10 — Write the version bump and commit it on dev
+
+Update `package.json` with Edit: change only the `version` value to NEW_VERSION, nothing else in the file.
+
+Update `CHANGELOG.md`:
+
+- If it does not exist, create it with Write, containing exactly this header, a blank line, then the entry:
+
+  ```
+  # Changelog
+
+  All notable changes to this project are documented in this file.
+  ```
+
+- If it exists, use Edit to insert the entry, followed by a blank line, directly above the first existing `## ` heading. If it has no `## ` heading, add the entry after the header.
+
+Then commit, without pushing:
 
 ```
 git add package.json CHANGELOG.md
 git commit -m "chore: bump version to vNEW_VERSION"
-git push origin dev
 ```
 
-## Step 12 — Merge dev into main
+If the commit fails (a pre-commit hook rejects it, for example), stop. Tell the user that `package.json` and `CHANGELOG.md` are modified but not committed, and that nothing has been pushed. They can fix the problem and run this again after discarding the changes with `git checkout -- package.json CHANGELOG.md` (deleting `CHANGELOG.md` instead if this run created it).
+
+## Step 11 — Bring local main up to date
 
 ```
 git checkout main
-git pull origin main
-git merge dev --no-ff -m "release: vNEW_VERSION"
+git merge --ff-only origin/main
 ```
 
-If the merge reports conflicts, stop. Tell the user which files conflicted, and that they should resolve them, complete the merge, and push `main` manually. Do not attempt to resolve conflicts automatically.
+If the fast-forward fails, local `main` has commits that are not on `origin/main`. Run `git checkout dev`, then stop and tell the user:
 
-## Step 13 — Tag and push main
+> ❌ Your local `main` has commits that aren't on `origin/main`. Nothing has been pushed. Sort out `main` first, then run this again.
+>
+> Your local `dev` has the unpushed version bump commit. To undo it before running again:
+>
+> ```
+> git checkout dev
+> git reset --hard HEAD~1
+> ```
 
-```
-git tag -a vNEW_VERSION -m "Release vNEW_VERSION"
-git push origin main
-git push origin vNEW_VERSION
-```
+## Step 12 — Merge dev into main
 
-## Step 14 — Return to dev
+Run: `git merge dev --no-ff -m "release: vNEW_VERSION"`
+
+If the merge reports conflicts, do not resolve them. Run `git merge --abort`, then `git checkout dev`. Stop and tell the user which files conflicted, that nothing has been pushed, and that their local `dev` has the unpushed version bump commit, which they can undo with:
 
 ```
 git checkout dev
+git reset --hard HEAD~1
 ```
 
-## Step 15 — Summary
+## Step 13 — Tag the release
+
+Run: `git tag -a vNEW_VERSION -m "Release vNEW_VERSION"`
+
+## Step 14 — Push everything at once
+
+Run: `git push --atomic origin dev main refs/tags/vNEW_VERSION`
+
+If the push is rejected, nothing reached the remote, because the push is atomic. Run `git checkout dev`. Stop and show the user the error. Tell them the release is complete locally: the version bump commit on `dev`, the merge on `main` and the tag `vNEW_VERSION`. Once the cause is fixed, they can push again with the same command. If someone else pushed in the meantime, it is safer to undo the local release and run this again:
+
+```
+git tag -d vNEW_VERSION
+git checkout main
+git reset --hard origin/main
+git checkout dev
+git reset --hard HEAD~1
+```
+
+## Step 15 — Return to dev
+
+Run: `git checkout dev`
+
+## Step 16 — Summary
 
 Print a short summary:
 

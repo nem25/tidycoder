@@ -38,12 +38,14 @@ Reads your changes and writes a commit message in the imperative mood that expla
 
 Cuts a production release for a project that Vercel deploys from Git:
 
-1. Checks you're on `dev`, the working tree is clean and `dev` is in sync with the remote.
-2. Bumps the version in `package.json` and writes a `CHANGELOG.md` entry summarising the commits since the last tag.
-3. Asks you to confirm.
-4. Commits the bump on `dev`, merges `dev` into `main` with `--no-ff`, tags `vX.Y.Z` and pushes both.
+1. Checks you're on `dev`, the working tree is clean, and after a fetch that `dev` is up to date and already has everything on `main`.
+2. Runs your `test` and `build` scripts, if you have them.
+3. Works out the new version and drafts a `CHANGELOG.md` entry summarising the commits since the last tag.
+4. Asks you to confirm. Nothing is written before you say yes.
+5. Commits the bump on `dev`, merges `dev` into `main` with `--no-ff` and tags `vX.Y.Z`, all locally.
+6. Pushes `dev`, `main` and the tag in one atomic push, so either all three land or none do.
 
-It assumes `dev` is your integration branch (Vercel preview) and `main` is production, and that `package.json` at the repository root has a `version` field. On a merge conflict it stops and leaves the resolution to you.
+It only runs when you type the command; Claude won't start it on its own. It assumes `dev` is your integration branch (Vercel preview) and `main` is production, and that `package.json` at the repository root has a `version` field. If anything fails, it stops before pushing, never resolves conflicts or resets branches itself, and tells you how to recover.
 
 ### Status band
 
