@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented in this file.
 
+## v1.1.1 — 2026-11-11
+
+- `/tidycoder:deploy-plugin` no longer fails at the README check in sessions that don't have the Glob tool. It now lists the plugin's files with whichever file-listing tool the session has.
+
 ## v1.1.0 — 2026-11-11
 
 - New skill: `/tidycoder:deploy-plugin` releases a Claude Code plugin from a marketplace repository. It checks the README covers every skill, mod and option, bumps the version, writes the changelog, then tags and pushes in one atomic push. It runs only when you type it.
