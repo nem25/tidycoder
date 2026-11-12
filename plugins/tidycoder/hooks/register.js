@@ -171,6 +171,16 @@ function render(Box, Text, rows) {
   })
 }
 
+// Re-read the session's current model and effort into the shared state
+async function refreshModel($) {
+  try {
+    model = prettyModel(await $.session.model()) || model
+  } catch {}
+  try {
+    effort = prettyEffort(await $.env.get('CLAUDE_EFFORT')) || effort
+  } catch {}
+}
+
 // ---------- hooks ----------
 export function register(on, options) {
   // The "Show status band" option (plugin.json userConfig). When it's off,
@@ -208,6 +218,17 @@ export function register(on, options) {
     return yield* next(e)
   })
 
+  // /model and /effort take effect immediately, before any request is sent,
+  // so re-read both once the command has run instead of waiting for turn.step
+  for (const name of ['model', 'effort']) {
+    on('command.run', { command: name }, async ($, e, next) => {
+      const result = await next(e)
+      await refreshModel($)
+      $.ui.invalidate('ui.render')
+      return result
+    })
+  }
+
   // Fires after each turn, and when a plan limit's percent changes
   on('session.measure', async ($, e, next) => {
     $.ui.invalidate('ui.render')
@@ -225,11 +246,8 @@ export function register(on, options) {
     try {
       usage = await $.session.usage()
     } catch {}
-    if (!model) {
-      try {
-        model = prettyModel(await $.session.model())
-      } catch {}
-    }
+    // Cheap, and catches a model change made any way other than /model
+    await refreshModel($)
 
     const limits = (usage && usage.rateLimits) || []
     const segments = [
