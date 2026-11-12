@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## v1.1.2 — 2026-11-12
+
+- The status band now keeps up with `/model` and `/effort`. It shows the new model and effort straight away, instead of waiting for the next message, and no longer slips back to the effort the session started with.
+- The effort shown is the one Claude Code saved for the current model, so levels appear as Claude Code names them.
+- The 5h and 7d plan-limit segments always show, even at 0%.
+- The README now explains how to update the plugin and how to turn on auto-update.
+
 ## v1.1.1 — 2026-11-11
 
 - `/tidycoder:deploy-plugin` no longer fails at the README check in sessions that don't have the Glob tool. It now lists the plugin's files with whichever file-listing tool the session has.

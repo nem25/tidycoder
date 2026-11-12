@@ -2,7 +2,7 @@
   "name": "tidycoder",
   "displayName": "TidyCoder",
   "description": "Skills and tools for structured, 0-1 product coding workflows",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "author": { "name": "Neha" },
   "repository": "https://github.com/nem25/tidycoder",
   "license": "MIT",
