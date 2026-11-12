@@ -171,14 +171,43 @@ function render(Box, Text, rows) {
   })
 }
 
-// Re-read the session's current model and effort into the shared state
-async function refreshModel($) {
+// The effort saved for a model. /model and /effort keep one per model, under
+// modelSettings.<model id>.effortLevel; a top-level effortLevel is the older,
+// model-wide form. Keys are matched by pretty name, so this works whether the
+// session reports an id or a display name. Levels are passed through as saved,
+// so new ones show without a change here.
+async function savedEffort($, sessionModel) {
+  const name = prettyModel(sessionModel)
   try {
-    model = prettyModel(await $.session.model()) || model
+    const per = await $.settings.read({ key: 'modelSettings' })
+    if (per && typeof per === 'object') {
+      for (const [id, conf] of Object.entries(per)) {
+        if (prettyModel(id) === name && conf) {
+          const level = prettyEffort(conf.effortLevel)
+          if (level) return level
+        }
+      }
+    }
   } catch {}
   try {
-    effort = prettyEffort(await $.env.get('CLAUDE_EFFORT')) || effort
+    return prettyEffort(await $.settings.read({ key: 'effortLevel' }))
   } catch {}
+  return null
+}
+
+// Re-read the session's model, and its effort when asked or when the model
+// has changed (each model keeps its own effort)
+async function refreshModel($, withEffort) {
+  let raw = null
+  try {
+    raw = await $.session.model()
+  } catch {}
+  const m = prettyModel(raw)
+  const changed = m && m !== model
+  if (m) model = m
+  if (raw && (withEffort || changed)) {
+    effort = (await savedEffort($, raw)) || effort
+  }
 }
 
 // ---------- hooks ----------
@@ -191,12 +220,11 @@ export function register(on, options) {
   // Pick up the current model and effort when the mod loads
   on('session.start', async ($, e, next) => {
     try {
-      model = prettyModel(await $.session.model()) || model
-    } catch {}
-    try {
-      // The session's effort level, as Claude Code exports it to hooks and Bash
+      // The effort the session started with, as Claude Code exports it to
+      // hooks and Bash. It's set once at launch and does not follow /effort.
       effort = prettyEffort(await $.env.get('CLAUDE_EFFORT')) || effort
     } catch {}
+    await refreshModel($, !effort)
     // Keep reset times fresh even when nothing else changes
     $.clock.every(60_000, () => $.ui.invalidate('ui.render'))
     $.ui.invalidate('ui.render')
@@ -223,7 +251,8 @@ export function register(on, options) {
   for (const name of ['model', 'effort']) {
     on('command.run', { command: name }, async ($, e, next) => {
       const result = await next(e)
-      await refreshModel($)
+      // Both commands save the level to settings, so read it back from there
+      await refreshModel($, true)
       $.ui.invalidate('ui.render')
       return result
     })
@@ -246,8 +275,9 @@ export function register(on, options) {
     try {
       usage = await $.session.usage()
     } catch {}
-    // Cheap, and catches a model change made any way other than /model
-    await refreshModel($)
+    // Cheap, and catches a model change made any way other than /model.
+    // Effort is re-read only when the model changes: turn.step's is the true one.
+    await refreshModel($, false)
 
     const limits = (usage && usage.rateLimits) || []
     const segments = [
