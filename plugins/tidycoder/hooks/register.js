@@ -113,10 +113,10 @@ function contextSegment(ctx) {
 
 // limit: { kind, percentUsed (0–100), resetsAt? }
 function limitSegment(name, limit) {
-  if (!limit) return null
-  const p = limit.percentUsed
+  // A limit with no usage may be absent from the data; still show it at 0%
+  const p = limit && isNum(limit.percentUsed) ? limit.percentUsed : 0
   const s = [{ text: name + ' ', dim: true }, ...barPieces(p), { text: ' ' + Math.round(p) + '%' }]
-  const r = resetLabel(limit.resetsAt)
+  const r = limit && resetLabel(limit.resetsAt)
   if (r) s.push({ text: ' ' + r, dim: true })
   return s
 }
