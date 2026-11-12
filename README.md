@@ -23,6 +23,19 @@ On older versions, add the marketplace first:
 /plugin install tidycoder@tidycoder
 ```
 
+## Update
+
+Updates arrive when a new release is published. To pick one up, refresh the marketplace, then update the plugin:
+
+```
+claude plugin marketplace update tidycoder
+claude plugin update tidycoder@tidycoder
+```
+
+Restart Claude Code afterwards (`/exit`, then `claude --continue`) so the new version loads. `claude plugin list` shows the version you have, and [CHANGELOG.md](CHANGELOG.md) says what each release changed.
+
+To get releases without doing this by hand, open `/plugin`, go to **Marketplaces**, pick `tidycoder` and choose **Enable auto-update**. Third-party marketplaces have it off by default.
+
 ## What's included
 
 ### `/tidycoder:git-commit`
