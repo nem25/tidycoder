@@ -1,6 +1,6 @@
 ---
 name: deploy-vercel
-description: Release the current project to production on Vercel — bump the version in package.json, write a CHANGELOG entry, merge dev into main, and tag the release. Use when the user asks to deploy, ship, cut a release, or push to production.
+description: Release the current project to production on Vercel — bump the version in package.json, write a CHANGELOG entry, fast-forward main to dev, and tag the release. Use when the user asks to deploy, ship, cut a release, or push to production.
 disable-model-invocation: true
 allowed-tools: Bash(git branch:*), Bash(git status:*), Bash(git fetch:*), Bash(git rev-list:*), Bash(git log:*), Bash(git describe:*), Bash(git tag:*), Bash(git add:*), Bash(git commit:*), Bash(git checkout:*), Bash(git merge:*), Bash(git push:*), Bash(npm run:*), Bash(pnpm run:*), Bash(yarn run:*), Bash(bun run:*), Read, Write, Edit
 argument-hint: major|minor|patch
@@ -8,7 +8,9 @@ argument-hint: major|minor|patch
 
 # Deploy to Production
 
-Release the project by bumping the version on `dev`, merging `dev` into `main`, and tagging. Vercel deploys production from `main`.
+Release the project by bumping the version on `dev`, fast-forwarding `main` to `dev`, and tagging. Vercel deploys production from `main`.
+
+`main` is never merged into with a merge commit. After a release, `main` and `dev` point at the same commit, which carries the tag. That keeps everything on `main` in `dev`'s history, so the next release passes Step 4 and finds the tag in Step 7 without anything being brought back to `dev`.
 
 **Branch convention assumed:** `dev` is the integration branch (Vercel preview), `main` is production. Feature work happens on branches off `dev`.
 
@@ -42,7 +44,7 @@ Run: `git branch --show-current`
 
 > ❌ You are on `<branch-name>`, not `dev`.
 >
-> This skill commits the version bump and CHANGELOG entry to `dev` before merging into `main`. Running it from a feature branch would put those chore commits on the wrong branch, and `dev` would be missing the release history.
+> This skill commits the version bump and CHANGELOG entry to `dev` before fast-forwarding `main` to it. Running it from a feature branch would put those chore commits on the wrong branch, and `dev` would be missing the release history.
 >
 > Merge your work into `dev` first, then run this again:
 >
@@ -81,9 +83,9 @@ Then run: `git rev-list --count dev..origin/main`
 
 If this fails because `origin/main` does not exist, stop and tell the user this skill expects a `main` branch on `origin` for Vercel to deploy from.
 
-If the number is above 0, `main` has commits that `dev` does not (a hotfix, for example). Stop and tell the user:
+If the number is above 0, `main` has commits that `dev` does not: a hotfix, for example, or a release merge commit left by an earlier version of this skill. Stop and tell the user:
 
-> ❌ `main` has commits that aren't on `dev`. Bring them into `dev` first, so the release merge can't conflict:
+> ❌ `main` has commits that aren't on `dev`. Bring them into `dev` first, so `main` can be fast-forwarded to `dev`:
 >
 > ```
 > git merge origin/main
@@ -152,7 +154,7 @@ Show the user:
 - CURRENT_VERSION → NEW_VERSION
 - Which checks ran in Step 6 and that they passed
 - The CHANGELOG entry about to be written
-- The branches that will be updated: `dev` and `main`
+- The branches that will be updated: `dev` gets the version bump commit, and `main` is fast-forwarded to `dev`
 - The tag that will be created: `vNEW_VERSION`
 
 Ask: "Proceed with deploy? (yes/no)"
@@ -202,11 +204,13 @@ If the fast-forward fails, local `main` has commits that are not on `origin/main
 > git reset --hard HEAD~1
 > ```
 
-## Step 12 — Merge dev into main
+## Step 12 — Fast-forward main to dev
 
-Run: `git merge dev --no-ff -m "release: vNEW_VERSION"`
+Run: `git merge --ff-only dev`
 
-If the merge reports conflicts, do not resolve them. Run `git merge --abort`, then `git checkout dev`. Stop and tell the user which files conflicted, that nothing has been pushed, and that their local `dev` has the unpushed version bump commit, which they can undo with:
+Do not use `--no-ff` or create a merge commit: a merge commit on `main` would not be on `dev`, and the next release would stop at Step 4.
+
+Step 4 checked that `dev` contains everything on `origin/main`, and Step 11 made local `main` match `origin/main`, so this should always succeed. If it fails anyway, do not merge any other way. Run `git checkout dev`, then stop and tell the user that `main` could not be fast-forwarded to `dev`, with the error, that nothing has been pushed, and that their local `dev` has the unpushed version bump commit, which they can undo with:
 
 ```
 git checkout dev
@@ -221,7 +225,7 @@ Run: `git tag -a vNEW_VERSION -m "Release vNEW_VERSION"`
 
 Run: `git push --atomic origin dev main refs/tags/vNEW_VERSION`
 
-If the push is rejected, nothing reached the remote, because the push is atomic. Run `git checkout dev`. Stop and show the user the error. Tell them the release is complete locally: the version bump commit on `dev`, the merge on `main` and the tag `vNEW_VERSION`. Once the cause is fixed, they can push again with the same command. If someone else pushed in the meantime, it is safer to undo the local release and run this again:
+If the push is rejected, nothing reached the remote, because the push is atomic. Run `git checkout dev`. Stop and show the user the error. Tell them the release is complete locally: the version bump commit on `dev`, `main` fast-forwarded to it, and the tag `vNEW_VERSION`. Once the cause is fixed, they can push again with the same command. If someone else pushed in the meantime, it is safer to undo the local release and run this again:
 
 ```
 git tag -d vNEW_VERSION
