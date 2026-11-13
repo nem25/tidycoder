@@ -10,7 +10,7 @@ argument-hint: major|minor|patch
 
 Release the project by bumping the version on `dev`, fast-forwarding `main` to `dev`, and tagging. Vercel deploys production from `main`.
 
-`main` is never merged into with a merge commit. After a release, `main` and `dev` point at the same commit, which carries the tag. That keeps everything on `main` in `dev`'s history, so the next release passes Step 4 and finds the tag in Step 7 without anything being brought back to `dev`.
+`main` only ever fast-forwards, and never gets a merge commit. After a release, `main` and `dev` point at the same commit, which carries the tag. Everything on `main` is therefore already in `dev`'s history, so the next release passes Step 4 and finds the tag in Step 7 without anything being brought back to `dev`.
 
 **Branch convention assumed:** `dev` is the integration branch (Vercel preview), `main` is production. Feature work happens on branches off `dev`.
 
