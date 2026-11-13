@@ -55,7 +55,7 @@ Cuts a production release for a project that Vercel deploys from Git:
 2. Runs your `test` and `build` scripts, if you have them.
 3. Works out the new version and drafts a `CHANGELOG.md` entry summarising the commits since the last tag.
 4. Asks you to confirm. Nothing is written before you say yes.
-5. Commits the bump on `dev`, merges `dev` into `main` with `--no-ff` and tags `vX.Y.Z`, all locally.
+5. Commits the bump on `dev`, fast-forwards `main` to `dev` and tags `vX.Y.Z`, all locally. There's no merge commit, so `main` and `dev` end up on the same commit and nothing needs bringing back into `dev` before the next release.
 6. Pushes `dev`, `main` and the tag in one atomic push, so either all three land or none do.
 
 It only runs when you type the command; Claude won't start it on its own. It assumes `dev` is your integration branch (Vercel preview) and `main` is production, and that `package.json` at the repository root has a `version` field. If anything fails, it stops before pushing, never resolves conflicts or resets branches itself, and tells you how to recover.
