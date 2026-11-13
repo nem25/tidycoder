@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
+## v1.1.3 — 2026-11-13
+
+- `/tidycoder:deploy-vercel` now fast-forwards `main` to `dev` instead of merging with `--no-ff`. The merge commit it used to leave on `main` never reached `dev`, so every release after the first stopped at the "`dev` has everything on `main`" check. `main` and `dev` now end each release on the same tagged commit.
+- If `main` already has a release merge commit from an earlier version of the skill, the skill still stops once and tells you to merge `origin/main` into `dev`. After that one-time step, releases run normally.
+
 ## v1.1.2 — 2026-11-12
 
 - The status band now keeps up with `/model` and `/effort`. It shows the new model and effort straight away, instead of waiting for the next message, and no longer slips back to the effort the session started with.
